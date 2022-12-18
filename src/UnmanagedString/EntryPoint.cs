@@ -21,17 +21,16 @@ public static class EntryPoint
             Logger.Error("Usage: UnmanagedString.exe <path to assembly>");
             return;
         }
-        
+
         if (!File.Exists(args[0]))
         {
             Logger.Error($"File not found: {args[0]}");
             return;
         }
 
-        var file = File.ReadAllBytes(args[0]);
-        var module = ModuleDefinition.FromBytes(file);
+        var module = ModuleDefinition.FromFile(args[0]);
         var importer = new ReferenceImporter(module);
-        
+
         Logger.Information("Starting...");
 
         module.Attributes &= ~DotNetDirectoryFlags.ILOnly;
@@ -62,27 +61,39 @@ public static class EntryPoint
                     CreateNewNativeMethodWithString(
                         instruction.Operand as string ?? throw new InvalidCilInstructionException(), module, isx86);
 
+                if (newNativeMethod == null)
+                    continue;
+
                 instruction.OpCode = CilOpCodes.Call;
                 instruction.Operand = newNativeMethod;
 
                 method.CilMethodBody.Instructions.Insert(++index,
                     new CilInstruction(CilOpCodes.Newobj,
                         importer.ImportMethod(
-                            typeof(string).GetConstructor(new[] {typeof(sbyte*)})!)));
+                            typeof(string).GetConstructor(new[] { typeof(sbyte*) })!)));
             }
-        
+
         module.Write(args[0] + "_strings.exe");
         Logger.Success("Done!");
     }
 
-    private static MethodDefinition CreateNewNativeMethodWithString(string toInject, ModuleDefinition originalModule,
+    private static MethodDefinition? CreateNewNativeMethodWithString(string toInject, ModuleDefinition originalModule,
         bool isX86)
     {
-        if (toInject == null || originalModule == null)
-            throw new ArgumentNullException(nameof(toInject));
-        
         if (originalModule == null)
             throw new ArgumentNullException(nameof(originalModule));
+
+        // Register new encoding provider. 
+        Encoding.RegisterProvider(CodePagesEncodingProvider.Instance);
+        var w1252Encoding = Encoding.GetEncoding(1252); // Windows-1252
+
+        // Check if the string is in Windows-1252 range.
+        if (!CanBeEncodedInWindows1252(toInject))
+        {
+            Logger.Warning(
+                $"Skipping string \"{toInject}\" because it contains characters outside of Windows-1252 range.");
+            return null;
+        }
 
         var factory = originalModule.CorLibTypeFactory;
 
@@ -94,15 +105,11 @@ public static class EntryPoint
         // Set ImplAttributes to NativeBody.
         method.ImplAttributes |= MethodImplAttributes.Native | MethodImplAttributes.Unmanaged |
                                  MethodImplAttributes.PreserveSig;
-        
+
         // Set Attributes to PinvokeImpl.
         method.Attributes |= MethodAttributes.PInvokeImpl;
 
         originalModule.GetOrCreateModuleType().Methods.Add(method);
-
-        // Register new encoding provider. 
-        Encoding.RegisterProvider(CodePagesEncodingProvider.Instance);
-        var w1252Encoding = Encoding.GetEncoding(1252); // Windows-1252
 
         // Get the string bytes.
         var stringBytes = w1252Encoding.GetBytes(toInject);
@@ -126,7 +133,7 @@ public static class EntryPoint
                     0x58, // pop eax
                     0x83, 0xC0, 0x0B, // add eax, 0xb
                     0xEB, 0xF8 // jmp <jump2>
-                }.Concat(stringBytes).Concat(new byte[] {0x00}).ToArray()
+                }.Concat(stringBytes).Concat(new byte[] { 0x00 }).ToArray()
             };
         else
             body = new NativeMethodBody(method)
@@ -135,11 +142,26 @@ public static class EntryPoint
                 {
                     0x48, 0x8D, 0x05, 0x01, 0x00, 0x00, 0x00, // lea rax, [rip + 0x1]
                     0xC3 // ret
-                }.Concat(stringBytes).Concat(new byte[] {0x00}).ToArray()
+                }.Concat(stringBytes).Concat(new byte[] { 0x00 }).ToArray()
             };
-        
+
         Logger.Success($"Created new native method with name: {methodName} for string: {toInject}");
         method.NativeMethodBody = body;
         return method;
+    }
+
+    private static bool CanBeEncodedInWindows1252(string str)
+    {
+        try
+        {
+            _ = Encoding.GetEncoding(1252, EncoderFallback.ExceptionFallback, DecoderFallback.ReplacementFallback)
+                .GetBytes(str);
+
+            return true;
+        }
+        catch
+        {
+            return false;
+        }
     }
 }
