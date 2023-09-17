@@ -9,3 +9,6 @@ Via the command prompt or by dragging the file to be modified. Works with .NET F
 ![alt text](/img/img1.png)
 ![alt text](/img/img2.png)
 ![alt text](/img/img3.png)
+
+## Credits
+A special shoutout to [BitMono](https://github.com/sunnamed434/BitMono) for their efforts in refactoring and enhancing this tool.

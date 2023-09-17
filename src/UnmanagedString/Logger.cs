@@ -4,61 +4,61 @@ using Console = Colorful.Console;
 
 namespace UnmanagedString;
 
-public class Logger
+public static class Logger
 {
     private const string MessageStyle = "[{0}] [{1}] {2}";
 
-    public static void Information(string message)
+    public static void Information(ReadOnlySpan<char> message)
     {
         var replacements = new[]
         {
             new(DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss"), Color.LightGreen),
             new Formatter("INFO", Color.LightGreen),
-            new Formatter(message, Color.White)
+            new Formatter(message.ToString(), Color.White)
         };
         Console.WriteLineFormatted(MessageStyle, Color.Gray, replacements);
     }
 
-    public static void Success(string message)
+    public static void Success(ReadOnlySpan<char> message)
     {
         var replacements = new[]
         {
             new(DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss"), Color.Green),
             new Formatter("SUCCESS", Color.Green),
-            new Formatter(message, Color.White)
+            new Formatter(message.ToString(), Color.White)
         };
         Console.WriteLineFormatted(MessageStyle, Color.Gray, replacements);
     }
 
-    public static void Warning(string message)
+    public static void Warning(ReadOnlySpan<char> message)
     {
         var replacements = new[]
         {
             new(DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss"), Color.Yellow),
             new Formatter("WARNING", Color.Yellow),
-            new Formatter(message, Color.White)
+            new Formatter(message.ToString(), Color.White)
         };
         Console.WriteLineFormatted(MessageStyle, Color.Gray, replacements);
     }
 
-    public static void Error(string message)
+    public static void Error(ReadOnlySpan<char> message)
     {
         var replacements = new[]
         {
             new(DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss"), Color.Red),
             new Formatter("ERROR", Color.Red),
-            new Formatter(message, Color.White)
+            new Formatter(message.ToString(), Color.White)
         };
         Console.WriteLineFormatted(MessageStyle, Color.Gray, replacements);
     }
 
-    public static void Skipped(string message)
+    public static void Skipped(ReadOnlySpan<char> message)
     {
         var replacements = new[]
         {
             new(DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss"), Color.DarkGray),
             new Formatter("SKIPPED", Color.DarkGray),
-            new Formatter(message, Color.White)
+            new Formatter(message.ToString(), Color.White)
         };
         Console.WriteLineFormatted(MessageStyle, Color.Gray, replacements);
     }
